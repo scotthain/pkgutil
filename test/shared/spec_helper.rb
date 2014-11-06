@@ -1,11 +1,10 @@
 require 'serverspec'
-include Serverspec::Helper::Exec
-include Serverspec::Helper::DetectOS
 
-Dir[File.expand_path('../support/**/*.rb', __FILE__)].each { |file| require_relative(file) }
+# Required by serverspec
+set :backend, :exec
 
 RSpec.configure do |config|
   config.before(:all) do
-    config.os = backend(Serverspec::Commands::Base).check_os
+    config.path = '/sbin:/usr/local/sbin:/bin'
   end
 end
