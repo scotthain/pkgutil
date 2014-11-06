@@ -43,6 +43,15 @@ class Chef
           @current_resource.package_name(@new_resource.package_name)
           @new_resource.version(nil)
 
+          output = pkgutil("--parse -A #{new_resource.package_name}")
+          output.each_line do |line|
+            if line.match(/^CSW#{@new_resource.package_name}\s(.+)\sSAME$/)
+              @current_resource.version($1)
+            elsif line.match(/^CSW#{@new_resource.package_name}\s(.+)\snot installed$/)
+              @current_resource.version(nil)
+            end
+          end
+
           unless @current_resource.version.nil?
             @current_resource.version(nil)
           end
@@ -78,9 +87,9 @@ class Chef
           Chef::Log.debug("Pkgutil:  remove_package")
           if installed?
             Chef::Log.info("Removing package #{@new_resource.package_name}.")
-            pkgutil("-y --parse -r CSW#{@new_resource.package_name}-#{@new_resource.version}")
+            pkgutil("-y --parse -r CSW#{@new_resource.package_name}")
           elsif
-            Chef::Log.info("Package #{@new_resource.package_name} version #{@new_resource.version} not installed.  Skipping.")
+            Chef::Log.info("Package #{@new_resource.package_name} is not installed.  Skipping.")
           end
         end
 
@@ -93,10 +102,13 @@ class Chef
             fail("The package #{new_resource.package_name} does not exist in the catalog.")
           end
           output.each_line do |line|
-            if line.match(/^CSW#{@new_resource.package_name}\s+#{@new_resource.version}\s+SAME$/)
+            if line.match(/^CSW#{@new_resource.package_name}\s#{@new_resource.version}\sSAME$/)
               Chef::Log.info("Required version of package is installed.")
               return true
-            elsif line.match(/^CSW#{@new_resource.package_name}\s+#{@new_resource.version}\s+not installed$/)
+            elsif @new_resource.version.nil? && line.match(/^CSW#{@new_resource.package_name}\s.+\sSAME$/)
+              Chef::Log.info("Package is installed, no desired version specified.")
+              return true
+            elsif line.match(/^CSW#{@new_resource.package_name}\s#{@new_resource.version}\snot installed$/)
               Chef::Log.info("Required package or version is not installed.")
               next
             end
