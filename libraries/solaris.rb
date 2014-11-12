@@ -64,7 +64,7 @@ class Chef
           return @candidate_version if @candidate_version
           output = pkgutil("--parse -a #{@new_resource.package_name}")
           output.each_line do |line|
-            if line.match(/^#{new_resource.package_name}\sCSW\w+\s(.+)+\s\d+$/)
+            if line.match(/^#{safe(@new_resource.package_name)}\s+CSW#{safe(@new_resource.package_name)}\s(.+)\s\d+$/)
               @candidate_version = $1
               @new_resource.version($1)
               Chef::Log.info("#{@new_resource} setting install candidate version to #{@candidate_version}")
@@ -114,6 +114,10 @@ class Chef
             end
           end
           false
+        end
+
+        def safe(string)
+          string.gsub('+', '\\\+')
         end
       end
     end
