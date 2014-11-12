@@ -102,11 +102,11 @@ class Chef
             fail("The package #{new_resource.package_name} does not exist in the catalog.")
           end
           output.each_line do |line|
-            if line.match(/^CSW#{@new_resource.package_name}\s#{@new_resource.version}\sSAME$/)
-              Chef::Log.info("Required version of package is installed.")
-              return true
-            elsif @new_resource.version.nil? && line.match(/^CSW#{@new_resource.package_name}\s.+\sSAME$/)
+            if @new_resource.version.nil? && line.match(/^CSW#{@new_resource.package_name}\s.+\sSAME$/)
               Chef::Log.info("Package is installed, no desired version specified.")
+              return true
+            elsif line.match(/^CSW#{@new_resource.package_name}\s#{@new_resource.version}\sSAME$/)
+              Chef::Log.info("Required version of package is installed.")
               return true
             elsif line.match(/^CSW#{@new_resource.package_name}\s#{@new_resource.version}\snot installed$/)
               Chef::Log.info("Required package or version is not installed.")
