@@ -38,16 +38,16 @@ class Chef
         end
 
         def load_current_resource
-          Chef::Log.info("Pkgutil:  load_current_resource")
+          Chef::Log.debug("Pkgutil:  load_current_resource")
           @current_resource = Chef::Resource::Package.new(@new_resource.name)
           @current_resource.package_name(@new_resource.package_name)
           @new_resource.version(nil)
 
           output = pkgutil("--parse -A #{new_resource.package_name}")
           output.each_line do |line|
-            if line.match(/^CSW#{@new_resource.package_name}\s(.+)\sSAME$/)
+            if line.match(/^#{csw_name}\s(.+)\sSAME$/)
               @current_resource.version($1)
-            elsif line.match(/^CSW#{@new_resource.package_name}\s(.+)\snot installed$/)
+            elsif line.match(/^#{csw_name}\s(.+)\snot installed$/)
               @current_resource.version(nil)
             end
           end
@@ -64,7 +64,7 @@ class Chef
           return @candidate_version if @candidate_version
           output = pkgutil("--parse -a #{@new_resource.package_name}")
           output.each_line do |line|
-            if line.match(/^#{safe(@new_resource.package_name)}\s+CSW#{safe(@new_resource.package_name)}\s(.+)\s\d+$/)
+            if line.match(/^#{short_name}\s+#{csw_name}\s(.+)\s\d+$/)
               @candidate_version = $1
               @new_resource.version($1)
               Chef::Log.info("#{@new_resource} setting install candidate version to #{@candidate_version}")
@@ -79,7 +79,7 @@ class Chef
             Chef::Log.info("The package #{new_resource.package_name} version #{new_resource.version} is already installed.  Skipping.")
           elsif
             Chef::Log.info("Installing package #{@new_resource.package_name} at version #{@new_resource.version}")
-            pkgutil("-y -i CSW#{@new_resource.package_name}-#{@new_resource.version}")
+            pkgutil("-y -i #{csw_name}-#{@new_resource.version}")
           end
         end
 
@@ -87,13 +87,24 @@ class Chef
           Chef::Log.debug("Pkgutil:  remove_package")
           if installed?
             Chef::Log.info("Removing package #{@new_resource.package_name}.")
-            pkgutil("-y --parse -r CSW#{@new_resource.package_name}")
+            pkgutil("-y --parse -r #{csw_name}")
           elsif
             Chef::Log.info("Package #{@new_resource.package_name} is not installed.  Skipping.")
           end
         end
 
         private
+
+        def short_name
+          @short_name ||= safe(@new_resource.package_name)
+        end
+
+        def csw_name
+          # OpenCSW uses underscores in short package names and dashes in official package names.
+          blob1 = safe(@new_resource.package_name)
+          blob2 = blob1.gsub('_', '-')
+          @csw_name ||= "CSW#{blob2}"
+        end
 
         def installed?
           output = pkgutil("--parse -A #{new_resource.package_name}")
@@ -102,13 +113,13 @@ class Chef
             fail("The package #{new_resource.package_name} does not exist in the catalog.")
           end
           output.each_line do |line|
-            if @new_resource.version.nil? && line.match(/^CSW#{@new_resource.package_name}\s.+\sSAME$/)
+            if @new_resource.version.nil? && line.match(/^#{csw_name}\s.+\sSAME$/)
               Chef::Log.info("Package is installed, no desired version specified.")
               return true
-            elsif line.match(/^CSW#{@new_resource.package_name}\s#{@new_resource.version}\sSAME$/)
+            elsif line.match(/^#{csw_name}\s#{@new_resource.version}\sSAME$/)
               Chef::Log.info("Required version of package is installed.")
               return true
-            elsif line.match(/^CSW#{@new_resource.package_name}\s#{@new_resource.version}\snot installed$/)
+            elsif line.match(/^#{csw_name}\s#{@new_resource.version}\snot installed$/)
               Chef::Log.info("Required package or version is not installed.")
               next
             end
